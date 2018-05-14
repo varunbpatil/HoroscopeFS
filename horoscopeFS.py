@@ -5,6 +5,8 @@ import fuse
 import tempfile
 import requests
 import textwrap
+import argparse
+
 
 # Name must match the class that implements it.
 # Each of these will be a directory under the mountpoint.
@@ -14,18 +16,25 @@ horoscope_sites = ['Astrosage', 'Astroyogi', 'AstroyogiCareer', 'IndianAstrology
 # corresponding to the horoscope site.
 horoscope_types = ['daily', 'weekly', 'monthly']
 
+# Default string to be displayed when unable to load page.
+NA = b"Not available\n"
+
+
 class Req(object):
+    """Get HTML page using requests and parse it using BeautifulSoup"""
+
     def __init__(self):
         super().__init__()
+
 
     def _get(self, url, timeout=30):
         try:
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
-            soup = bs4.BeautifulSoup(response.text, "html.parser")
-            return soup
+            return bs4.BeautifulSoup(response.text, "html.parser")
         except:
             return None
+
 
 class Astrosage(Req):
     """Horoscopes from www.astrosage.com"""
@@ -40,6 +49,7 @@ class Astrosage(Req):
             url = url.format(base_url, horoscope_type, moonsign)
             self.horoscope[horoscope_type] = self._parse_html(url, horoscope_type)
 
+
     def _parse_html(self, url, horoscope_type):
         soup = self._get(url)
         if soup:
@@ -51,7 +61,8 @@ class Astrosage(Req):
             content = textwrap.fill(content.strip()) + "\n"
             return content.encode()
         else:
-            return b"Not available\n"
+            return NA
+
 
 class Astroyogi(Req):
     """Horoscopes from www.astroyogi.com"""
@@ -66,6 +77,7 @@ class Astroyogi(Req):
             url = url.format(base_url, horoscope_type, sunsign)
             self.horoscope[horoscope_type] = self._parse_html(url)
 
+
     def _parse_html(self, url):
         soup = self._get(url)
         if soup:
@@ -73,7 +85,8 @@ class Astroyogi(Req):
             content = textwrap.fill(content.strip()) + "\n"
             return content.encode()
         else:
-            return b"Not available\n"
+            return NA
+
 
 class AstroyogiCareer(Req):
     """Career horoscopes from www.astroyogi.com"""
@@ -88,6 +101,7 @@ class AstroyogiCareer(Req):
             url = url.format(base_url, horoscope_type, sunsign)
             self.horoscope[horoscope_type] = self._parse_html(url)
 
+
     def _parse_html(self, url):
         soup = self._get(url)
         if soup:
@@ -95,7 +109,8 @@ class AstroyogiCareer(Req):
             content = textwrap.fill(content.strip()) + "\n"
             return content.encode()
         else:
-            return b"Not available\n"
+            return NA
+
 
 class IndianAstrology2000(Req):
     """Horoscopes from www.indianastrology2000.com"""
@@ -112,11 +127,12 @@ class IndianAstrology2000(Req):
                 self.horoscope[horoscope_type] = self._parse_html(url)
             elif horoscope_type == "weekly":
                 # No weekly horoscope available.
-                self.horoscope[horoscope_type] = b"Not available\n"
+                self.horoscope[horoscope_type] = NA
             elif horoscope_type == "monthly":
                 url = "{}/{}-monthly-horoscope.html"
                 url = url.format(base_url, moonsign)
                 self.horoscope[horoscope_type] = self._parse_html(url)
+
 
     def _parse_html(self, url):
         soup = self._get(url)
@@ -125,7 +141,8 @@ class IndianAstrology2000(Req):
             content = textwrap.fill(content.strip()) + "\n"
             return content.encode()
         else:
-            return b"Not available\n"
+            return NA
+
 
 class HoroscopeFS(fuse.Operations):
     """Virtual filesystem for aggregating horoscopes from various websites"""
@@ -156,12 +173,14 @@ class HoroscopeFS(fuse.Operations):
 
         print("Ready")
 
+
     # Given a 'stat_result' object, convert it into a Python dictionary.
     def _convert_stat_to_dict(self, stat_result):
         stat_keys = ('st_atime', 'st_ctime', 'st_gid', 'st_mode',
                      'st_mtime', 'st_nlink', 'st_size', 'st_uid')
 
         return dict((key, getattr(stat_result, key)) for key in stat_keys)
+
 
     # Get the size of the file corresponding to the given path.
     # Path is a string of the form /<horoscope_site>/<horoscope_type>
@@ -170,12 +189,14 @@ class HoroscopeFS(fuse.Operations):
         horoscope_obj = self.horoscope_objs[horoscope_site]
         return len(horoscope_obj.horoscope[horoscope_type])
 
+
     # Read data from the given file path.
     # Path is a string of the form /<horoscope_site>/<horoscope_type>
     def _read_data_from_path(self, path, length, offset):
         horoscope_site, horoscope_type = path.split(os.sep)[1:3]
         horoscope_obj = self.horoscope_objs[horoscope_site]
         return horoscope_obj.horoscope[horoscope_type][offset : offset+length]
+
 
     def getattr(self, path, fh=None):
         if any(map(path.endswith, horoscope_sites)):
@@ -192,6 +213,7 @@ class HoroscopeFS(fuse.Operations):
             # For all other files/directories, return the stats from the OS.
             return self._convert_stat_to_dict(os.lstat(path))
 
+
     def readdir(self, path, fh):
         if any(map(path.endswith, horoscope_sites)):
             # Each horoscope website directory contains one file for each
@@ -202,8 +224,10 @@ class HoroscopeFS(fuse.Operations):
             # horoscope website.
             return self.dot_dirs + horoscope_sites
 
+
     def read(self, path, length, offset, fh):
         return self._read_data_from_path(path, length, offset)
+
 
 def main(mountpoint, sunsign, moonsign):
     fuse.FUSE(HoroscopeFS(sunsign, moonsign),
@@ -211,5 +235,12 @@ def main(mountpoint, sunsign, moonsign):
               nothreads=True,
               foreground=True)
 
+
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2].lower(), sys.argv[3].lower())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("mountpoint", help="Mount point for the Virtual File System")
+    parser.add_argument("sunsign", help="Your sun sign")
+    parser.add_argument("moonsign", help="Your moon sign")
+    args = parser.parse_args()
+
+    main(args.mountpoint, args.sunsign.lower(), args.moonsign.lower())
