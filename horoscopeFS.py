@@ -148,8 +148,6 @@ class HoroscopeFS(fuse.Operations):
     """Virtual filesystem for aggregating horoscopes from various websites"""
 
     def __init__(self, sunsign, moonsign):
-        print("Initializing...")
-
         # Get default stats for an empty directory and empty file.
         # The temporary directory and file are automatically deleted.
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -163,15 +161,8 @@ class HoroscopeFS(fuse.Operations):
         self.sunsign = sunsign
         self.moonsign = moonsign
         self.dot_dirs = ['.', '..']
-
-        # Construct objects for each of the horoscope sites.
-        self.horoscope_objs = {}
         self.current_module = sys.modules[__name__]
-        for site in horoscope_sites:
-            obj = getattr(self.current_module, site)(self.sunsign, self.moonsign)
-            self.horoscope_objs[site] = obj
-
-        print("Ready")
+        self.horoscope_objs = {}
 
 
     # Given a 'stat_result' object, convert it into a Python dictionary.
@@ -180,6 +171,15 @@ class HoroscopeFS(fuse.Operations):
                      'st_mtime', 'st_nlink', 'st_size', 'st_uid')
 
         return dict((key, getattr(stat_result, key)) for key in stat_keys)
+
+
+    # Create an object on-demand for the horoscope site we are looking at
+    # if the object has not already been created.
+    def _construct_obj_from_path(self, path):
+        horoscope_site, _ = path.split(os.sep)[1:3]
+        if not self.horoscope_objs.get(horoscope_site, None):
+            obj = getattr(self.current_module, horoscope_site)(self.sunsign, self.moonsign)
+            self.horoscope_objs[horoscope_site] = obj
 
 
     # Get the size of the file corresponding to the given path.
@@ -204,6 +204,9 @@ class HoroscopeFS(fuse.Operations):
             # return the default stats for directory.
             return self.stat_dict_dir
         elif any(map(path.endswith, horoscope_types)):
+            # Fetch content from the horoscope site we are looking at on-demand.
+            self._construct_obj_from_path(path)
+
             # For files corresponding to the horoscope types,
             # return the stats for the file with st_size set appropriately.
             stat = dict(self.stat_dict_file) # Create a copy before modifying
