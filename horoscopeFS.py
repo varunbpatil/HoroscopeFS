@@ -30,15 +30,19 @@ class Astrosage():
 
 
     def _parse_html(self, url, horoscope_type):
-        response = requests.get(url)
-        soup = bs4.BeautifulSoup(response.text, "html.parser")
-        if horoscope_type == "daily":
-            html_class_attr = "ui-large-content-box"
-        else:
-            html_class_attr = "ui-sign-content-box"
-        content = soup.find(class_=html_class_attr).text
-        content = textwrap.fill(content.strip()) + "\n"
-        return content.encode()
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            soup = bs4.BeautifulSoup(response.text, "html.parser")
+            if horoscope_type == "daily":
+                html_class_attr = "ui-large-content-box"
+            else:
+                html_class_attr = "ui-sign-content-box"
+            content = soup.find(class_=html_class_attr).text
+            content = textwrap.fill(content.strip()) + "\n"
+            return content.encode()
+        except:
+            return b"Not available\n"
 
 
 class Astroyogi():
@@ -55,11 +59,15 @@ class Astroyogi():
 
 
     def _parse_html(self, url):
-        response = requests.get(url)
-        soup = bs4.BeautifulSoup(response.text, "html.parser")
-        content = soup.find(id="ContentPlaceHolder1_LblPrediction").contents[0]
-        content = textwrap.fill(content.strip()) + "\n"
-        return content.encode()
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            soup = bs4.BeautifulSoup(response.text, "html.parser")
+            content = soup.find(id="ContentPlaceHolder1_LblPrediction").contents[0]
+            content = textwrap.fill(content.strip()) + "\n"
+            return content.encode()
+        except:
+            return b"Not available\n"
 
 
 class AstroyogiCareer():
@@ -76,11 +84,15 @@ class AstroyogiCareer():
 
 
     def _parse_html(self, url):
-        response = requests.get(url)
-        soup = bs4.BeautifulSoup(response.text, "html.parser")
-        content = soup.find(id="ContentPlaceHolder1_LblPrediction").contents[0]
-        content = textwrap.fill(content.strip()) + "\n"
-        return content.encode()
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            soup = bs4.BeautifulSoup(response.text, "html.parser")
+            content = soup.find(id="ContentPlaceHolder1_LblPrediction").contents[0]
+            content = textwrap.fill(content.strip()) + "\n"
+            return content.encode()
+        except:
+            return b"Not available\n"
 
 
 class IndianAstrology2000:
@@ -105,11 +117,15 @@ class IndianAstrology2000:
 
 
     def _parse_html(self, url):
-        response = requests.get(url)
-        soup = bs4.BeautifulSoup(response.text, "html.parser")
-        content = soup.find(class_="horoscope-sign-content-block").text
-        content = textwrap.fill(content.strip()) + "\n"
-        return content.encode()
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            soup = bs4.BeautifulSoup(response.text, "html.parser")
+            content = soup.find(class_="horoscope-sign-content-block").text
+            content = textwrap.fill(content.strip()) + "\n"
+            return content.encode()
+        except:
+            return b"Not available\n"
 
 
 class HoroscopeFS(fuse.Operations):
