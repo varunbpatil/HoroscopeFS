@@ -9,7 +9,7 @@ import textwrap
 
 # Name must match the class that implements it.
 # Each of these will be a directory under the mountpoint.
-horoscope_sites = ['Astrosage', 'Astroyogi', 'IndianAstrology2000']
+horoscope_sites = ['Astrosage', 'Astroyogi', 'AstroyogiCareer', 'IndianAstrology2000']
 
 # Each of these will be a file under the directory
 # corresponding to the horoscope site.
@@ -50,6 +50,27 @@ class Astroyogi():
         self.horoscope = {}
         for horoscope_type in horoscope_types:
             url = "{}/{}/{}-free-horoscope.aspx"
+            url = url.format(base_url, horoscope_type, sunsign)
+            self.horoscope[horoscope_type] = self._parse_html(url)
+
+
+    def _parse_html(self, url):
+        response = requests.get(url)
+        soup = bs4.BeautifulSoup(response.text, "html.parser")
+        content = soup.find(id="ContentPlaceHolder1_LblPrediction").contents[0]
+        content = textwrap.fill(content.strip()) + "\n"
+        return content.encode()
+
+
+class AstroyogiCareer():
+    """Career horoscopes from www.astroyogi.com"""
+
+    def __init__(self, sunsign, moonsign):
+        # Fetch horoscopes.
+        base_url = "https://www.astroyogi.com/horoscopes"
+        self.horoscope = {}
+        for horoscope_type in horoscope_types:
+            url = "{}/{}/{}-career-horoscope.aspx"
             url = url.format(base_url, horoscope_type, sunsign)
             self.horoscope[horoscope_type] = self._parse_html(url)
 
